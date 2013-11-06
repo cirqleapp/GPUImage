@@ -10,6 +10,7 @@
     CVOpenGLESTextureCacheRef coreVideoTextureCache;
     AVAssetReader *reader;
     AVPlayerItemVideoOutput *playerItemOutput;
+    AVPlayer *audioPlayer;
     CADisplayLink *displayLink;
     CMTime previousFrameTime;
     CFAbsoluteTime previousActualFrameTime;
@@ -39,6 +40,7 @@
 @synthesize playAtActualSpeed = _playAtActualSpeed;
 @synthesize delegate = _delegate;
 @synthesize shouldRepeat = _shouldRepeat;
+@synthesize muted = _muted;
 
 #pragma mark -
 #pragma mark Initialization and teardown
@@ -186,22 +188,51 @@
     NSDictionary *inputOptions = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] forKey:AVURLAssetPreferPreciseDurationAndTimingKey];
     AVURLAsset *inputAsset = [[AVURLAsset alloc] initWithURL:self.url options:inputOptions];
     
+    if (!synchronizedMovieWriter && self.shouldPlaySound) {
+        AVPlayerItem *item = [[AVPlayerItem alloc] initWithAsset:inputAsset];
+        [audioPlayer pause];
+        audioPlayer = [[AVPlayer alloc] initWithPlayerItem:item];
+        [audioPlayer play];
+        [self setMuted:_muted];
+    }
+    
     GPUImageMovie __block *blockSelf = self;
     
     [inputAsset loadValuesAsynchronouslyForKeys:[NSArray arrayWithObject:@"tracks"] completionHandler: ^{
-        runSynchronouslyOnVideoProcessingQueue(^{
-            NSError *error = nil;
-            AVKeyValueStatus tracksStatus = [inputAsset statusOfValueForKey:@"tracks" error:&error];
-            if (!tracksStatus == AVKeyValueStatusLoaded)
-            {
-                return;
-            }
-            blockSelf.asset = inputAsset;
-            [blockSelf processAsset];
-            blockSelf = nil;
-        });
+        NSError *error = nil;
+        AVKeyValueStatus tracksStatus = [inputAsset statusOfValueForKey:@"tracks" error:&error];
+        if (!tracksStatus == AVKeyValueStatusLoaded)
+        {
+            return;
+        }
+        blockSelf.asset = inputAsset;
+        [blockSelf processAsset];
+        blockSelf = nil;
     }];
 }
+
+-(void)setMuted:(BOOL)muted
+{
+    _muted = muted;
+    
+    AVURLAsset *asset = (AVURLAsset *)[[audioPlayer currentItem] asset];
+    NSArray *audioTracks = [asset tracksWithMediaType:AVMediaTypeAudio];
+    
+    // Mute all the audio tracks
+    NSMutableArray *allAudioParams = [NSMutableArray array];
+    for (AVAssetTrack *track in audioTracks) {
+        AVMutableAudioMixInputParameters *audioInputParams =    [AVMutableAudioMixInputParameters audioMixInputParameters];
+        [audioInputParams setVolume:muted?0.0:1.0 atTime:kCMTimeZero];
+        [audioInputParams setTrackID:[track trackID]];
+        [allAudioParams addObject:audioInputParams];
+    }
+    AVMutableAudioMix *audioZeroMix = [AVMutableAudioMix audioMix];
+    [audioZeroMix setInputParameters:allAudioParams];
+    
+    [[audioPlayer currentItem] setAudioMix:audioZeroMix];
+}
+
+
 
 - (AVAssetReader*)createAssetReader
 {
