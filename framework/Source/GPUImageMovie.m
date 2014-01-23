@@ -26,6 +26,8 @@
     const GLfloat *_preferredConversion;
 
     int imageBufferWidth, imageBufferHeight;
+    
+    BOOL _firstFrame;
 }
 
 - (void)processAsset;
@@ -170,6 +172,7 @@
 
 - (void)startProcessing
 {
+    _firstFrame = YES;
     if( self.playerItem ) {
         [self processPlayerItem];
         return;
@@ -516,57 +519,45 @@
             if ([GPUImageContext deviceSupportsRedTextures])
             {
                 err = CVOpenGLESTextureCacheCreateTextureFromImage(kCFAllocatorDefault, coreVideoTextureCache, movieFrame, NULL, GL_TEXTURE_2D, GL_LUMINANCE, bufferWidth, bufferHeight, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0, &luminanceTextureRef);
-                luminanceTexture = CVOpenGLESTextureGetName(luminanceTextureRef);
-                glBindTexture(GL_TEXTURE_2D, luminanceTexture);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             }
             else
             {
                 err = CVOpenGLESTextureCacheCreateTextureFromImage(kCFAllocatorDefault, coreVideoTextureCache, movieFrame, NULL, GL_TEXTURE_2D, GL_LUMINANCE, bufferWidth, bufferHeight, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0, &luminanceTextureRef);
-                luminanceTexture = CVOpenGLESTextureGetName(luminanceTextureRef);
-                glBindTexture(GL_TEXTURE_2D, luminanceTexture);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             }
             if (err)
             {
                 NSLog(@"Error at CVOpenGLESTextureCacheCreateTextureFromImage %d", err);
             }
 
+            glFinish();
             luminanceTexture = CVOpenGLESTextureGetName(luminanceTextureRef);
             glBindTexture(GL_TEXTURE_2D, luminanceTexture);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glFinish();
             
             // UV-plane
             glActiveTexture(GL_TEXTURE5);
             if ([GPUImageContext deviceSupportsRedTextures])
             {
                 err = CVOpenGLESTextureCacheCreateTextureFromImage(kCFAllocatorDefault, coreVideoTextureCache, movieFrame, NULL, GL_TEXTURE_2D, GL_LUMINANCE_ALPHA, bufferWidth/2, bufferHeight/2, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, 1, &chrominanceTextureRef);
-                chrominanceTexture = CVOpenGLESTextureGetName(chrominanceTextureRef);
-                glBindTexture(GL_TEXTURE_2D, chrominanceTexture);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             }
             else
             {
                 err = CVOpenGLESTextureCacheCreateTextureFromImage(kCFAllocatorDefault, coreVideoTextureCache, movieFrame, NULL, GL_TEXTURE_2D, GL_LUMINANCE_ALPHA, bufferWidth/2, bufferHeight/2, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, 1, &chrominanceTextureRef);
-                chrominanceTexture = CVOpenGLESTextureGetName(chrominanceTextureRef);
-                glBindTexture(GL_TEXTURE_2D, chrominanceTexture);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             }
             if (err)
             {
                 NSLog(@"Error at CVOpenGLESTextureCacheCreateTextureFromImage %d", err);
             }
 
+            glFinish();
             chrominanceTexture = CVOpenGLESTextureGetName(chrominanceTextureRef);
             glBindTexture(GL_TEXTURE_2D, chrominanceTexture);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
+            glFinish();
+            
             if (!allTargetsWantMonochromeData)
             {
                 [self convertYUVToRGBOutput];
@@ -581,6 +572,11 @@
                 [currentTarget setInputTexture:outputTexture atIndex:targetTextureIndex];
                 [currentTarget setTextureDelegate:self atIndex:targetTextureIndex];
 
+                if (_firstFrame)
+                {
+                    _firstFrame = NO;
+                    return;
+                }
                 [currentTarget newFrameReadyAtTime:currentSampleTime atIndex:targetTextureIndex];
             }
 
@@ -618,6 +614,11 @@
                 [currentTarget setInputTexture:outputTexture atIndex:targetTextureIndex];
                 [currentTarget setTextureDelegate:self atIndex:targetTextureIndex];
 
+                if (_firstFrame)
+                {
+                    _firstFrame = NO;
+                    return;
+                }
                 [currentTarget newFrameReadyAtTime:currentSampleTime atIndex:targetTextureIndex];
             }
 
@@ -652,6 +653,12 @@
             NSInteger targetTextureIndex = [[targetTextureIndices objectAtIndex:indexOfObject] integerValue];
 
             [currentTarget setInputSize:currentSize atIndex:targetTextureIndex];
+            
+            if (_firstFrame)
+            {
+                _firstFrame = NO;
+                return;
+            }
             [currentTarget newFrameReadyAtTime:currentSampleTime atIndex:targetTextureIndex];
         }
         CVPixelBufferUnlockBaseAddress(movieFrame, 0);
