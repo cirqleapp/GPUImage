@@ -402,6 +402,12 @@
                 {
                     usleep(1000000.0 * (frameTimeDifference - actualTimeDifference));
                 }
+                else if(frameTimeDifference < actualTimeDifference)
+                {
+                    CMSampleBufferInvalidate(sampleBufferRef);
+                    CFRelease(sampleBufferRef);
+                    return YES;
+                }
                 
                 previousFrameTime = currentSampleTime;
                 previousActualFrameTime = CFAbsoluteTimeGetCurrent();
