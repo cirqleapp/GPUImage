@@ -28,6 +28,7 @@
     int imageBufferWidth, imageBufferHeight;
     
     BOOL _firstFrame;
+    CMTime _currentTime;
 }
 
 - (void)processAsset;
@@ -43,6 +44,7 @@
 @synthesize delegate = _delegate;
 @synthesize shouldRepeat = _shouldRepeat;
 @synthesize muted = _muted;
+@synthesize highFrameRate = _highFrameRate;
 
 #pragma mark -
 #pragma mark Initialization and teardown
@@ -173,6 +175,8 @@
 - (void)startProcessing
 {
     _firstFrame = YES;
+    _currentTime = CMTimeMake(0, 600);
+    
     if( self.playerItem ) {
         [self processPlayerItem];
         return;
@@ -268,8 +272,12 @@
 
 - (void)processAsset
 {
+    AVAssetTrack *videoTrack = [[_asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
+    _highFrameRate = [videoTrack nominalFrameRate] > 60;
+    
+    
     reader = [self createAssetReader];
-
+    
     AVAssetReaderOutput *readerVideoTrackOutput = nil;
     AVAssetReaderOutput *readerAudioTrackOutput = nil;
 
@@ -477,9 +485,18 @@
 //    CMTimeGetSeconds
 //    CMTimeSubtract
     
+    
+    
     CMTime currentSampleTime = CMSampleBufferGetOutputPresentationTimeStamp(movieSampleBuffer);
     CVImageBufferRef movieFrame = CMSampleBufferGetImageBuffer(movieSampleBuffer);
-    [self processMovieFrame:movieFrame withSampleTime:currentSampleTime];
+    
+    if (_highFrameRate) {
+        _currentTime = CMTimeAdd(_currentTime, CMTimeMake(20, 600));
+        [self processMovieFrame:movieFrame withSampleTime:_currentTime];
+    } else {
+        [self processMovieFrame:movieFrame withSampleTime:currentSampleTime];
+    }
+    
 }
 
 - (void)processMovieFrame:(CVPixelBufferRef)movieFrame withSampleTime:(CMTime)currentSampleTime
