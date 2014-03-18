@@ -31,6 +31,7 @@
 @property(readwrite, nonatomic) BOOL shouldRepeat;
 @property(readwrite, nonatomic) BOOL shouldPlaySound;
 @property(readwrite, nonatomic) BOOL muted;
+@property(readwrite, nonatomic) BOOL slowMotionPlayback;
 
 /** This is used to send the delete Movie did complete playing alert
  */
@@ -40,6 +41,7 @@
 @property (readonly, nonatomic) BOOL audioEncodingIsFinished;
 @property (readonly, nonatomic) BOOL videoEncodingIsFinished;
 @property (readonly, nonatomic) BOOL highFrameRate;
+
 
 /// @name Initialization and teardown
 - (id)initWithAsset:(AVAsset *)asset;

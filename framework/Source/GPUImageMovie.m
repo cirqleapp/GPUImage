@@ -45,6 +45,7 @@
 @synthesize shouldRepeat = _shouldRepeat;
 @synthesize muted = _muted;
 @synthesize highFrameRate = _highFrameRate;
+@synthesize slowMotionPlayback = _slowMotionPlayback;
 
 #pragma mark -
 #pragma mark Initialization and teardown
@@ -406,11 +407,16 @@
                 CGFloat frameTimeDifference = CMTimeGetSeconds(differenceFromLastFrame);
                 CGFloat actualTimeDifference = currentActualTime - previousActualFrameTime;
                 
+                if (self.slowMotionPlayback)
+                {
+                    frameTimeDifference = MIN(frameTimeDifference, 1/30.f);
+                }
+                
                 if (frameTimeDifference > actualTimeDifference)
                 {
                     usleep(1000000.0 * (frameTimeDifference - actualTimeDifference));
                 }
-                else if(frameTimeDifference < actualTimeDifference)
+                else if(!self.slowMotionPlayback && frameTimeDifference < actualTimeDifference)
                 {
                     CMSampleBufferInvalidate(sampleBufferRef);
                     CFRelease(sampleBufferRef);
