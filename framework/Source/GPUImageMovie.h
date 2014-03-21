@@ -33,6 +33,12 @@
 @property(readwrite, nonatomic) BOOL muted;
 @property(readwrite, nonatomic) BOOL slowMotionPlayback;
 
+@property(readonly, nonatomic) CGFloat duration;
+@property (copy, nonatomic) void (^durationLoadedBlock)(float duration);
+@property (assign, nonatomic) CGFloat startTime;
+@property (assign, nonatomic) CGFloat endTime;
+
+
 /** This is used to send the delete Movie did complete playing alert
  */
 @property (readwrite, nonatomic, assign) id <GPUImageMovieDelegate>delegate;
@@ -56,6 +62,7 @@
 - (void)startProcessing;
 - (void)endProcessing;
 - (void)cancelProcessing;
-- (void)processMovieFrame:(CMSampleBufferRef)movieSampleBuffer; 
+- (void)processMovieFrame:(CMSampleBufferRef)movieSampleBuffer;
+- (void)restart;
 
 @end

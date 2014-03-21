@@ -46,6 +46,8 @@
 @synthesize muted = _muted;
 @synthesize highFrameRate = _highFrameRate;
 @synthesize slowMotionPlayback = _slowMotionPlayback;
+@synthesize startTime = _startTime;
+@synthesize endTime = _endTime;
 
 #pragma mark -
 #pragma mark Initialization and teardown
@@ -206,12 +208,21 @@
     
     GPUImageMovie __block *blockSelf = self;
     
-    [inputAsset loadValuesAsynchronouslyForKeys:[NSArray arrayWithObject:@"tracks"] completionHandler: ^{
+    [inputAsset loadValuesAsynchronouslyForKeys:[NSArray arrayWithObjects:@"tracks", @"duration", nil] completionHandler: ^{
         NSError *error = nil;
         AVKeyValueStatus tracksStatus = [inputAsset statusOfValueForKey:@"tracks" error:&error];
         if (!tracksStatus == AVKeyValueStatusLoaded)
         {
             return;
+        }
+        AVKeyValueStatus durationStatus = [inputAsset statusOfValueForKey:@"duration" error:&error];
+        if (durationStatus == AVKeyValueStatusLoaded)
+        {
+            blockSelf->_duration = CMTimeGetSeconds([inputAsset duration]);
+            if (blockSelf.durationLoadedBlock) {
+                blockSelf.durationLoadedBlock(blockSelf.duration);
+            }
+            blockSelf.durationLoadedBlock = nil;
         }
         blockSelf.asset = inputAsset;
         [blockSelf processAsset];
@@ -278,6 +289,14 @@
     
     
     reader = [self createAssetReader];
+    CMTime startTime = CMTimeMake(self.startTime * 600, 600);
+    CMTime duration;
+    if (self.endTime != 0) {
+        duration = CMTimeMake((self.endTime - self.startTime) * 600, 600);
+    } else {
+        duration = CMTimeMake((self.duration - self.startTime) * 600, 600);
+    }
+    [reader setTimeRange:CMTimeRangeMake(startTime, duration)];
     
     AVAssetReaderOutput *readerVideoTrackOutput = nil;
     AVAssetReaderOutput *readerAudioTrackOutput = nil;
@@ -317,29 +336,33 @@
     {
         while (reader.status == AVAssetReaderStatusReading && (!_shouldRepeat || keepLooping))
         {
-                [weakSelf readNextVideoFrameFromOutput:readerVideoTrackOutput];
+            [weakSelf readNextVideoFrameFromOutput:readerVideoTrackOutput];
 
             if ( (readerAudioTrackOutput) && (!audioEncodingIsFinished) )
             {
-                    [weakSelf readNextAudioSampleFromOutput:readerAudioTrackOutput];
+                [weakSelf readNextAudioSampleFromOutput:readerAudioTrackOutput];
             }
 
         }
 
         if (reader.status == AVAssetWriterStatusCompleted) {
                 
-            [reader cancelReading];
-
-            if (keepLooping) {
-                reader = nil;
-                dispatch_async(dispatch_get_main_queue(), ^(void){
-                    [self startProcessing];
-                });
-            } else {
-                [weakSelf endProcessing];
-            }
-
+            [self restart];
         }
+    }
+}
+
+- (void)restart
+{
+    [reader cancelReading];
+    
+    if (keepLooping) {
+        reader = nil;
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            [self startProcessing];
+        });
+    } else {
+        [self endProcessing];
     }
 }
 
@@ -396,11 +419,13 @@
         CMSampleBufferRef sampleBufferRef = [readerVideoTrackOutput copyNextSampleBuffer];
         if (sampleBufferRef) 
         {
+            CMTime currentSampleTime = CMSampleBufferGetOutputPresentationTimeStamp(sampleBufferRef);
+            
             //NSLog(@"read a video frame: %@", CFBridgingRelease(CMTimeCopyDescription(kCFAllocatorDefault, CMSampleBufferGetOutputPresentationTimeStamp(sampleBufferRef))));
             if (_playAtActualSpeed)
             {
                 // Do this outside of the video processing queue to not slow that down while waiting
-                CMTime currentSampleTime = CMSampleBufferGetOutputPresentationTimeStamp(sampleBufferRef);
+                
                 CMTime differenceFromLastFrame = CMTimeSubtract(currentSampleTime, previousFrameTime);
                 CFAbsoluteTime currentActualTime = CFAbsoluteTimeGetCurrent();
                 
