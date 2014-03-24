@@ -729,6 +729,10 @@
 {
     keepLooping = NO;
     [displayLink setPaused:YES];
+    
+    if (self.shouldPlaySound) {
+        [audioPlayer pause];
+    }
 
     for (id<GPUImageInput> currentTarget in targets)
     {
