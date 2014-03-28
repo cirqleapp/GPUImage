@@ -434,7 +434,7 @@
                 
                 if (self.slowMotionPlayback)
                 {
-                    frameTimeDifference = MIN(frameTimeDifference, 1/30.f);
+                    frameTimeDifference = MAX(frameTimeDifference, 1/30.f);
                 }
                 
                 if (frameTimeDifference > actualTimeDifference)
