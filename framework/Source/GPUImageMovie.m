@@ -357,7 +357,13 @@
 
 - (void)restart
 {
-    [reader cancelReading];
+    @try {
+        [reader cancelReading];
+    }
+    @catch (NSException *exception) {
+        
+    }
+    
     
     if (keepLooping) {
         reader = nil;
