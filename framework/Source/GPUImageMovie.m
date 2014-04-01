@@ -217,12 +217,16 @@
         }
         AVKeyValueStatus durationStatus = [inputAsset statusOfValueForKey:@"duration" error:&error];
         
+        if (durationStatus == AVKeyValueStatusLoaded)
+        {
+            blockSelf->_duration = CMTimeGetSeconds([inputAsset duration]);
+        }
+        
         blockSelf.asset = inputAsset;
         [blockSelf processAsset];
         
         if (durationStatus == AVKeyValueStatusLoaded)
         {
-            blockSelf->_duration = CMTimeGetSeconds([inputAsset duration]);
             if (blockSelf.durationLoadedBlock) {
                 blockSelf.durationLoadedBlock(blockSelf.duration);
             }
