@@ -216,6 +216,10 @@
             return;
         }
         AVKeyValueStatus durationStatus = [inputAsset statusOfValueForKey:@"duration" error:&error];
+        
+        blockSelf.asset = inputAsset;
+        [blockSelf processAsset];
+        
         if (durationStatus == AVKeyValueStatusLoaded)
         {
             blockSelf->_duration = CMTimeGetSeconds([inputAsset duration]);
@@ -224,8 +228,7 @@
             }
             blockSelf.durationLoadedBlock = nil;
         }
-        blockSelf.asset = inputAsset;
-        [blockSelf processAsset];
+        
         blockSelf = nil;
     }];
 }
