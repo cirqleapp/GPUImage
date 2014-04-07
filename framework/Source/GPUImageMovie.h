@@ -33,11 +33,11 @@
 @property(readwrite, nonatomic) BOOL muted;
 @property(readwrite, nonatomic) BOOL slowMotionPlayback;
 
-@property(readonly, nonatomic) CGFloat duration;
+@property (readonly, nonatomic) CGFloat duration;
 @property (copy, nonatomic) void (^durationLoadedBlock)(float duration);
 @property (assign, nonatomic) CGFloat startTime;
 @property (assign, nonatomic) CGFloat endTime;
-
+@property (assign, nonatomic) BOOL highFrameRate;
 
 /** This is used to send the delete Movie did complete playing alert
  */
@@ -46,7 +46,7 @@
 @property (readonly, nonatomic) AVAssetReader *assetReader;
 @property (readonly, nonatomic) BOOL audioEncodingIsFinished;
 @property (readonly, nonatomic) BOOL videoEncodingIsFinished;
-@property (readonly, nonatomic) BOOL highFrameRate;
+
 
 
 /// @name Initialization and teardown

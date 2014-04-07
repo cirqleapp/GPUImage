@@ -292,8 +292,7 @@
 - (void)processAsset
 {
     AVAssetTrack *videoTrack = [[_asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
-    _highFrameRate = [videoTrack nominalFrameRate] > 60;
-    
+    _highFrameRate |= [videoTrack nominalFrameRate] > 60;
     
     reader = [self createAssetReader];
     CMTime startTime = CMTimeMake(self.startTime * 600, 600);
