@@ -48,6 +48,7 @@
 @synthesize slowMotionPlayback = _slowMotionPlayback;
 @synthesize startTime = _startTime;
 @synthesize endTime = _endTime;
+@synthesize processing = _processing;
 
 #pragma mark -
 #pragma mark Initialization and teardown
@@ -177,6 +178,8 @@
 
 - (void)startProcessing
 {
+    if (_processing) return;
+    _processing = YES;
     _firstFrame = YES;
     _currentTime = CMTimeMake(0, 600);
     
@@ -269,7 +272,10 @@
     // Maybe set alwaysCopiesSampleData to NO on iOS 5.0 for faster video decoding
     AVAssetReaderTrackOutput *readerVideoTrackOutput = [AVAssetReaderTrackOutput assetReaderTrackOutputWithTrack:[[self.asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] outputSettings:outputSettings];
     readerVideoTrackOutput.alwaysCopiesSampleData = NO;
-    [assetReader addOutput:readerVideoTrackOutput];
+    if ([assetReader canAddOutput:readerVideoTrackOutput]) {
+        [assetReader addOutput:readerVideoTrackOutput];
+    }
+    
 
     NSArray *audioTracks = [self.asset tracksWithMediaType:AVMediaTypeAudio];
     BOOL shouldRecordAudioTrack = (([audioTracks count] > 0) && (self.audioEncodingTarget != nil) );
@@ -283,7 +289,10 @@
         AVAssetTrack* audioTrack = [audioTracks objectAtIndex:0];
         readerAudioTrackOutput = [AVAssetReaderTrackOutput assetReaderTrackOutputWithTrack:audioTrack outputSettings:nil];
         readerAudioTrackOutput.alwaysCopiesSampleData = NO;
-        [assetReader addOutput:readerAudioTrackOutput];
+        if ([assetReader canAddOutput:readerAudioTrackOutput]) {
+            [assetReader addOutput:readerAudioTrackOutput];
+        }
+        
     }
 
     return assetReader;
@@ -371,6 +380,7 @@
     if (keepLooping) {
         reader = nil;
         dispatch_async(dispatch_get_main_queue(), ^(void){
+            _processing = NO;
             [self startProcessing];
         });
     } else {
@@ -739,6 +749,7 @@
 
 - (void)endProcessing;
 {
+    _processing = NO;
     keepLooping = NO;
     [displayLink setPaused:YES];
     

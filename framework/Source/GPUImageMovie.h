@@ -32,6 +32,7 @@
 @property(readwrite, nonatomic) BOOL shouldPlaySound;
 @property(readwrite, nonatomic) BOOL muted;
 @property(readwrite, nonatomic) BOOL slowMotionPlayback;
+@property(readonly, assign, nonatomic) BOOL processing;
 
 @property (readonly, nonatomic) CGFloat duration;
 @property (copy, nonatomic) void (^durationLoadedBlock)(float duration);
