@@ -202,6 +202,10 @@ CGFloat const GPUImageMovieTimeScale = 600.;
     GPUImageMovie __block *blockSelf = self;
     void(^startProcessingBlock)(AVAsset *asset) = ^(AVAsset *inputAsset){
         AVKeyValueStatus durationStatus = [inputAsset statusOfValueForKey:@"duration" error:nil];
+        if (durationStatus == AVKeyValueStatusLoaded){
+            blockSelf->_duration = CMTimeGetSeconds([inputAsset duration]);
+        }
+        
         if(self.didLoadAssetBlock){
             dispatch_async(dispatch_get_main_queue(), ^{
                 blockSelf.didLoadAssetBlock(inputAsset);
@@ -241,6 +245,7 @@ CGFloat const GPUImageMovieTimeScale = 600.;
             {
                 return;
             }
+            blockSelf.asset = inputAsset;
             startProcessingBlock(inputAsset);
         }];
     }
