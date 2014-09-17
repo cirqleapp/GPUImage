@@ -48,7 +48,7 @@
 @property (readonly, nonatomic) BOOL audioEncodingIsFinished;
 @property (readonly, nonatomic) BOOL videoEncodingIsFinished;
 
-
+- (void)setDidLoadAssetBlock:(void(^)(AVAsset *asset))block;
 
 /// @name Initialization and teardown
 - (id)initWithAsset:(AVAsset *)asset;

@@ -34,6 +34,8 @@ CGFloat const GPUImageMovieTimeScale = 600.;
     CMTime _currentTime;
 }
 
+@property (nonatomic, copy) void(^didLoadAssetBlock)(AVAsset *asset);
+
 - (void)processAsset;
 
 @end
@@ -229,18 +231,32 @@ CGFloat const GPUImageMovieTimeScale = 600.;
         }
         
         blockSelf.asset = inputAsset;
+        
+        if(self.didLoadAssetBlock){
+            dispatch_async(dispatch_get_main_queue(), ^{
+                blockSelf.didLoadAssetBlock(inputAsset);
+            });
+        }
+        
         [blockSelf processAsset];
         
         if (durationStatus == AVKeyValueStatusLoaded)
         {
             if (blockSelf.durationLoadedBlock) {
-                blockSelf.durationLoadedBlock(blockSelf.duration);
+                dispatch_async(dispatch_get_main_queue(), ^{
+                   blockSelf.durationLoadedBlock(blockSelf.duration);
+                });
             }
             blockSelf.durationLoadedBlock = nil;
         }
         
         blockSelf = nil;
     }];
+}
+
+- (void)setDidLoadAssetBlock:(void(^)(AVAsset *asset))block
+{
+    _didLoadAssetBlock = block;
 }
 
 -(void)setMuted:(BOOL)muted
