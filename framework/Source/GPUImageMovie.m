@@ -84,6 +84,7 @@ CGFloat const GPUImageMovieTimeScale = 600.;
     
     self.url = nil;
     self.asset = asset;
+    _duration = CMTimeGetSeconds(asset.duration);
     
     return self;
 }
@@ -188,50 +189,19 @@ CGFloat const GPUImageMovieTimeScale = 600.;
     _firstFrame = YES;
     _currentTime = CMTimeMake(0, GPUImageMovieTimeScale);
     
-    if( self.playerItem ) {
-        [self processPlayerItem];
-        return;
-    }
-    if(self.url == nil)
-    {
-        [self processAsset];
-        return;
-    }
-    
     if (_shouldRepeat) keepLooping = YES;
     
     previousFrameTime = CMTimeMakeWithSeconds(self.startTime, GPUImageMovieTimeScale);
     previousActualFrameTime = CFAbsoluteTimeGetCurrent();
     
-    NSDictionary *inputOptions = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] forKey:AVURLAssetPreferPreciseDurationAndTimingKey];
-    AVURLAsset *inputAsset = [[AVURLAsset alloc] initWithURL:self.url options:inputOptions];
-    
-    if (!synchronizedMovieWriter && self.shouldPlaySound) {
-        AVPlayerItem *item = [[AVPlayerItem alloc] initWithAsset:inputAsset];
-        [audioPlayer pause];
-        audioPlayer = [[AVPlayer alloc] initWithPlayerItem:item];
-        [audioPlayer play];
-        [self setMuted:_muted];
+    if( self.playerItem ) {
+        [self processPlayerItem];
+        return;
     }
     
     GPUImageMovie __block *blockSelf = self;
-    
-    [inputAsset loadValuesAsynchronouslyForKeys:[NSArray arrayWithObjects:@"tracks", @"duration", nil] completionHandler: ^{
-        NSError *error = nil;
-        AVKeyValueStatus tracksStatus = [inputAsset statusOfValueForKey:@"tracks" error:&error];
-        if (!tracksStatus == AVKeyValueStatusLoaded)
-        {
-            return;
-        }
-        AVKeyValueStatus durationStatus = [inputAsset statusOfValueForKey:@"duration" error:&error];
-        
-        if (durationStatus == AVKeyValueStatusLoaded)
-        {
-            blockSelf->_duration = CMTimeGetSeconds([inputAsset duration]);
-        }
-        
-        blockSelf.asset = inputAsset;
-        
+    void(^startProcessingBlock)(AVAsset *asset) = ^(AVAsset *inputAsset){
+        AVKeyValueStatus durationStatus = [inputAsset statusOfValueForKey:@"duration" error:nil];
         if(self.didLoadAssetBlock){
             dispatch_async(dispatch_get_main_queue(), ^{
                 blockSelf.didLoadAssetBlock(inputAsset);
@@ -240,18 +210,48 @@ CGFloat const GPUImageMovieTimeScale = 600.;
         
         [blockSelf processAsset];
         
-        if (durationStatus == AVKeyValueStatusLoaded)
-        {
+        if (durationStatus == AVKeyValueStatusLoaded){
             if (blockSelf.durationLoadedBlock) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                   blockSelf.durationLoadedBlock(blockSelf.duration);
+                    blockSelf.durationLoadedBlock(blockSelf.duration);
                 });
             }
             blockSelf.durationLoadedBlock = nil;
         }
         
         blockSelf = nil;
-    }];
+    };
+    
+    AVURLAsset *inputAsset = nil;
+    if(self.url == nil)
+    {
+        inputAsset = self.asset;
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            startProcessingBlock(inputAsset);
+        });
+        return;
+    }
+    else{
+        NSDictionary *inputOptions = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] forKey:AVURLAssetPreferPreciseDurationAndTimingKey];
+        AVURLAsset *inputAsset = [[AVURLAsset alloc] initWithURL:self.url options:inputOptions];
+        [inputAsset loadValuesAsynchronouslyForKeys:[NSArray arrayWithObjects:@"tracks", @"duration", nil] completionHandler: ^{
+            NSError *error = nil;
+            AVKeyValueStatus tracksStatus = [inputAsset statusOfValueForKey:@"tracks" error:&error];
+            if (!tracksStatus == AVKeyValueStatusLoaded)
+            {
+                return;
+            }
+            startProcessingBlock(inputAsset);
+        }];
+    }
+    
+    if (!synchronizedMovieWriter && self.shouldPlaySound) {
+        AVPlayerItem *item = [[AVPlayerItem alloc] initWithAsset:inputAsset];
+        [audioPlayer pause];
+        audioPlayer = [[AVPlayer alloc] initWithPlayerItem:item];
+        [audioPlayer play];
+        [self setMuted:_muted];
+    }
 }
 
 - (void)setDidLoadAssetBlock:(void(^)(AVAsset *asset))block
